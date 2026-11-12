@@ -68,9 +68,6 @@ progress{width:100%;accent-color:var(--ac)}
 .offs output{font:700 1.2rem "Bricolage Grotesque",system-ui,sans-serif;min-width:6.5em;text-align:center}
 @media(max-width:520px){.wrap{padding:10px}#vol{display:none}}
 @media(prefers-reduced-motion:reduce){.stage{transition:none}}
-[hidden]{display:none!important}
-.sub{z-index:2}
-@media (orientation:landscape) and (max-height:520px){.screen{aspect-ratio:auto;height:calc(100vh - 100px)}}
 </style>
 </head>
 <body>
@@ -165,7 +162,7 @@ progress{width:100%;accent-color:var(--ac)}
   </section>
 </div>
 <input type="file" id="vf" accept="video/*,.mkv" hidden>
-<input type="file" id="sf" hidden>
+<input type="file" id="sf" accept=".srt,.vtt,.txt" hidden>
 
 <script>
 const $=s=>document.querySelector(s),v=$('#v'),sub=$('#sub'),stage=$('#stage');
@@ -215,7 +212,7 @@ $('#sizes').onclick=e=>{const s=e.target.dataset.s;if(!s)return;stage.dataset.si
 const ts=s=>s.trim().replace(',','.').split(':').reduce((t,x)=>t*60+parseFloat(x),0);
 function parse(txt){
   const out=[];
-  for(const b of txt.replace(/^\uFEFF/,'').replace(/\r/g,'').split(/\n\s*\n/)){
+  for(const b of txt.replace(/^\uFEFF/,'').replace(/\r/g,'').split(/\n{2,}/)){
     const L=b.split('\n'),i=L.findIndex(l=>l.includes('-->'));if(i<0)continue;
     const [a,c]=L[i].split('-->');
     const t=L.slice(i+1).join('\n').replace(/<[^>]+>/g,'').replace(/\{\\[^}]*\}/g,'').trim();
@@ -223,9 +220,8 @@ function parse(txt){
   }
   return out.sort((x,y)=>x.s-y.s);
 }
-async function readText(f){const b=await f.arrayBuffer();try{return new TextDecoder('utf-8',{fatal:true}).decode(b)}catch(e){return new TextDecoder('windows-1252').decode(b)}}
 async function loadSub(f){
-  cues=parse(await readText(f));tr=[];ver++;lastKey='';
+  cues=parse(await f.text());tr=[];ver++;lastKey='';
   $('#subst').textContent=cues.length?f.name+' · '+cues.length+' baris':'Format subtitle tidak terbaca. Gunakan .srt atau .vtt.';
 }
 $('#openSub').onclick=()=>$('#sf').click();
