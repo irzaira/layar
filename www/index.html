@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Layar – Pemutar Video dengan Subtitle AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f2fa;--sf:#fff;--tx:#1c1b2e;--mu:#69667e;--ln:#dedaea;--ac:#d81b60;--on:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11121b;--sf:#1a1c2a;--tx:#ecebf6;--mu:#9d9bb6;--ln:#2c2f44;--ac:#ff7396;--on:#1a0a10}}
+:root[data-theme="dark"]{--bg:#11121b;--sf:#1a1c2a;--tx:#ecebf6;--mu:#9d9bb6;--ln:#2c2f44;--ac:#ff7396;--on:#1a0a10}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--tx);font:400 16px/1.5 "DM Sans",system-ui,sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:16px}
+h1{font:700 1.7rem/1.1 "Bricolage Grotesque",system-ui,sans-serif;margin:0}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.top p{margin:2px 0 0;color:var(--mu);font-size:.9rem}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.btn{background:var(--ac);color:var(--on);border:0;border-radius:10px;padding:9px 16px;font-weight:700}
+.btn.ghost{background:transparent;color:var(--tx);border:1px solid var(--ln)}
+.btn:disabled{opacity:.5;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--ln);border-radius:10px;overflow:hidden;background:var(--sf)}
+.seg button{background:none;border:0;padding:7px 13px;color:var(--mu)}
+.seg button[aria-pressed="true"]{background:var(--ac);color:var(--on);font-weight:700}
+.stage{margin:0 auto;width:100%;background:#0b0c12;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;color:#eceaf6;transition:max-width .25s}
+.stage[data-size="kecil"]{max-width:420px}
+.stage[data-size="sedang"]{max-width:820px}
+.stage[data-size="besar"]{max-width:1280px}
+.stage[data-size="mini"]{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom,0px));width:min(320px,72vw);z-index:20;box-shadow:0 8px 30px rgba(0,0,0,.45)}
+.stage[data-size="mini"] .more{display:none}
+.stage:fullscreen{max-width:none;border-radius:0}
+.stage:fullscreen .screen{flex:1;aspect-ratio:auto}
+.screen{position:relative;aspect-ratio:16/9;background:#000;container-type:inline-size}
+video{width:100%;height:100%;display:block;object-fit:contain}
+.sub{position:absolute;left:4%;right:4%;bottom:7%;text-align:center;pointer-events:none;font-size:clamp(12px,calc(var(--fs,3.2) * 1cqw),52px);line-height:1.3;font-weight:500}
+.sub div{display:block;margin:2px auto 0;width:fit-content;max-width:100%;padding:.1em .45em;background:rgba(0,0,0,.62);border-radius:.25em;white-space:pre-line}
+.sub .o{font-size:.78em;color:#c9c6dc}
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;text-align:center}
+.empty.drag{outline:2px dashed var(--ac);outline-offset:-10px}
+.empty strong{font:700 clamp(1rem,4cqw,1.5rem) "Bricolage Grotesque",system-ui,sans-serif}
+.empty small{color:#a9a6c0}
+.urlrow{display:flex;gap:6px;width:min(420px,100%)}
+.urlrow input{flex:1;min-width:0;background:#1a1c2a;border:1px solid #2c2f44;border-radius:8px;padding:7px 10px;color:#eceaf6}
+.bar{padding:8px 10px 10px;display:flex;flex-direction:column;gap:6px}
+.row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.bar button,.bar select{background:none;border:0;color:#eceaf6;padding:6px 8px;border-radius:8px;min-width:36px}
+.bar button:hover{background:#ffffff1a}
+.bar button[aria-pressed="true"]{color:var(--ac)}
+.bar .sp{flex:1}
+.bar .t{font-size:.8rem;color:#b5b2cc;font-variant-numeric:tabular-nums}
+input[type=range]{accent-color:var(--ac)}
+#seek{width:100%}
+#vol{width:70px}
+.panel{max-width:820px;margin:16px auto 0;background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:14px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--ln);margin-bottom:12px;overflow-x:auto}
+.tabs button{background:none;border:0;padding:8px 12px;color:var(--mu);border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--tx);border-color:var(--ac);font-weight:700}
+.pane{display:flex;flex-direction:column;gap:12px}
+.pane[hidden]{display:none}
+.pane label{display:flex;flex-direction:column;gap:4px;font-size:.9rem;color:var(--mu)}
+.pane select,.pane input[type=text],.pane input[type=password]{background:var(--bg);border:1px solid var(--ln);border-radius:8px;padding:8px 10px;color:var(--tx)}
+.st{font-size:.9rem;color:var(--mu);min-height:1.4em}
+progress{width:100%;accent-color:var(--ac)}
+.offs{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.offs output{font:700 1.2rem "Bricolage Grotesque",system-ui,sans-serif;min-width:6.5em;text-align:center}
+@media(max-width:520px){.wrap{padding:10px}#vol{display:none}}
+@media(prefers-reduced-motion:reduce){.stage{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><h1>Layar</h1><p>Putar video, pasang subtitle, terjemahkan dengan AI.</p></div>
+    <div class="seg" id="sizes" role="group" aria-label="Ukuran pemutar">
+      <button data-s="mini">Mini</button><button data-s="kecil">Kecil</button><button data-s="sedang" aria-pressed="true">Sedang</button><button data-s="besar">Besar</button>
+    </div>
+  </div>
+
+  <div class="stage" id="stage" data-size="sedang">
+    <div class="screen" id="screen">
+      <video id="v" playsinline></video>
+      <div class="sub" id="sub" hidden></div>
+      <div class="empty" id="empty">
+        <strong>Tarik video ke sini</strong>
+        <small>MP4, WebM, MOV. Subtitle .srt atau .vtt boleh ikut ditarik.</small>
+        <button class="btn" id="open">Pilih video</button>
+        <div class="urlrow"><input id="url" type="text" inputmode="url" placeholder="Atau tempel tautan video"><button class="btn ghost" id="goUrl" style="color:#eceaf6;border-color:#2c2f44">Putar</button></div>
+      </div>
+    </div>
+    <div class="bar">
+      <input type="range" id="seek" min="0" max="1000" value="0" aria-label="Posisi video">
+      <div class="row">
+        <button id="play" aria-label="Putar atau jeda">▶</button>
+        <button class="more" id="back" aria-label="Mundur 10 detik">−10</button>
+        <button class="more" id="fwd" aria-label="Maju 10 detik">+10</button>
+        <span class="t"><span id="tcur">0:00</span> / <span id="tdur">0:00</span></span>
+        <span class="sp"></span>
+        <button class="more" id="cc" aria-pressed="true" aria-label="Subtitle">CC</button>
+        <button class="more" id="mute" aria-label="Bisukan">🔊</button>
+        <input class="more" type="range" id="vol" min="0" max="1" step="0.05" value="1" aria-label="Volume">
+        <button class="more" id="rate" aria-label="Kecepatan">1×</button>
+        <button class="more" id="pip" aria-label="Gambar dalam gambar">PiP</button>
+        <button id="fs" aria-label="Layar penuh">⛶</button>
+      </div>
+    </div>
+  </div>
+
+  <section class="panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-p="p1" aria-selected="true">Subtitle</button>
+      <button role="tab" data-p="p2" aria-selected="false">Terjemahan AI</button>
+      <button role="tab" data-p="p3" aria-selected="false">Sinkronisasi</button>
+      <button role="tab" data-p="p4" aria-selected="false">Kunci AI</button>
+    </div>
+
+    <div class="pane" id="p1">
+      <div class="row"><button class="btn" id="openSub">Pilih file subtitle</button><span class="st" id="subst">Belum ada subtitle.</span></div>
+      <label>Ukuran teks <input type="range" id="fsz" min="2" max="6" step="0.2" value="3.2"></label>
+      <div><div class="st">Tampilkan</div><div class="seg" id="modes"><button data-m="orig" aria-pressed="true">Asli</button><button data-m="tr" aria-pressed="false">Terjemahan</button><button data-m="both" aria-pressed="false">Keduanya</button></div></div>
+    </div>
+
+    <div class="pane" id="p2" hidden>
+      <label>Terjemahkan subtitle ke
+        <select id="lang">
+          <option>Indonesia</option><option>Inggris</option><option>Jepang</option><option>Korea</option><option>Mandarin</option><option>Arab</option><option>Spanyol</option><option>Prancis</option><option>Jerman</option><option>Hindi</option><option>Thai</option><option>Melayu</option><option value="*">Bahasa lain…</option>
+        </select>
+      </label>
+      <input type="text" id="langx" placeholder="Tulis nama bahasa, misalnya Jawa" hidden>
+      <button class="btn" id="trgo">Terjemahkan dengan AI</button>
+      <progress id="trbar" max="100" value="0" hidden></progress>
+      <div class="st" id="trst">Bahasa asal dikenali otomatis. Terjemahan dimulai dari posisi video saat ini, jadi kamu bisa langsung menonton.</div>
+    </div>
+
+    <div class="pane" id="p3" hidden>
+      <div class="offs">
+        <button class="btn ghost" data-o="-5">−5</button><button class="btn ghost" data-o="-0.5">−0,5</button><button class="btn ghost" data-o="-0.1">−0,1</button>
+        <output id="offv">+0.0 dtk</output>
+        <button class="btn ghost" data-o="0.1">+0,1</button><button class="btn ghost" data-o="0.5">+0,5</button><button class="btn ghost" data-o="5">+5</button>
+      </div>
+      <label>Selisih FPS (jika subtitle makin lama makin meleset)
+        <select id="scale"><option value="1">Normal</option><option value="1.04271">23,976 → 25 fps</option><option value="0.95904">25 → 23,976 fps</option><option value="1.001">24 → 23,976 fps</option><option value="0.999">23,976 → 24 fps</option></select>
+      </label>
+      <button class="btn" id="ai">Sinkron cerdas (AI)</button>
+      <button class="btn ghost" id="auto">Sinkron cepat (deteksi suara)</button>
+      <progress id="sbar" max="100" value="0" hidden></progress>
+      <div class="st" id="syst">Sinkron cerdas: AI mengenali ucapan di 2–3 titik film dan mencocokkannya dengan subtitle (bahasa boleh beda), lalu mengatur geseran dan kecepatan subtitle. Butuh kunci OpenAI. Sinkron cepat: mendengarkan 45 detik dari posisi sekarang, tanpa AI.</div>
+      <button class="btn ghost" id="reset">Setel ulang sinkronisasi</button>
+    </div>
+
+    <div class="pane" id="p4" hidden>
+      <label>Penyedia AI untuk terjemahan dan pencocokan
+        <select id="prov"><option value="anthropic">Anthropic (Claude)</option><option value="openai">OpenAI</option></select>
+      </label>
+      <label>Kunci API Anthropic <input type="password" id="akey" autocomplete="off" placeholder="sk-ant-…"></label>
+      <label>Kunci API OpenAI <input type="password" id="okey" autocomplete="off" placeholder="sk-…"></label>
+      <label>Model (kosongkan untuk bawaan) <input type="text" id="model" placeholder="claude-sonnet-5-5 atau gpt-4o-mini"></label>
+      <div class="st">Kunci hanya disimpan di perangkat ini. Sinkron cerdas memakai OpenAI (Whisper) untuk mengenali ucapan, jadi kunci OpenAI wajib untuk fitur itu.</div>
+    </div>
+  </section>
+</div>
+<input type="file" id="vf" accept="video/*,.mkv" hidden>
+<input type="file" id="sf" accept=".srt,.vtt,.txt" hidden>
+
+<script>
+const $=s=>document.querySelector(s),v=$('#v'),sub=$('#sub'),stage=$('#stage');
+let cues=[],tr=[],mode='orig',off=0,sc=1,ccOn=true,ver=0,lastKey='',syncing=false,abort=false;
+const pad=n=>String(n).padStart(2,'0');
+const fmt=t=>{t=Math.max(0,t|0);const h=t/3600|0,m=(t%3600)/60|0,s=t%60;return h?h+':'+pad(m)+':'+pad(s):m+':'+pad(s)};
+
+/* ---------- Video ---------- */
+function loadVideo(src){v.src=src;$('#empty').hidden=true;v.load();v.play().catch(()=>{})}
+$('#open').onclick=()=>$('#vf').click();
+$('#vf').onchange=e=>e.target.files[0]&&loadVideo(URL.createObjectURL(e.target.files[0]));
+$('#goUrl').onclick=()=>{const u=$('#url').value.trim();if(u)loadVideo(u)};
+v.onerror=()=>{$('#empty').hidden=false;$('#empty').querySelector('small').textContent='Video tidak bisa diputar. Coba format MP4 atau WebM.'};
+$('#play').onclick=()=>v.paused?v.play():v.pause();
+v.onclick=$('#play').onclick;
+v.onplay=v.onpause=()=>$('#play').textContent=v.paused?'▶':'❚❚';
+$('#back').onclick=()=>v.currentTime-=10;
+$('#fwd').onclick=()=>v.currentTime+=10;
+v.ontimeupdate=()=>{$('#tcur').textContent=fmt(v.currentTime);if(v.duration)$('#seek').value=v.currentTime/v.duration*1000};
+v.onloadedmetadata=()=>$('#tdur').textContent=fmt(v.duration);
+$('#seek').oninput=e=>{if(v.duration)v.currentTime=e.target.value/1000*v.duration};
+$('#vol').oninput=e=>{v.volume=e.target.value;v.muted=false};
+$('#mute').onclick=()=>{v.muted=!v.muted;$('#mute').textContent=v.muted?'🔇':'🔊'};
+const rates=[0.75,1,1.25,1.5,2];
+$('#rate').onclick=()=>{const i=(rates.indexOf(v.playbackRate)+1)%rates.length;v.playbackRate=rates[i];$('#rate').textContent=rates[i]+'×'};
+$('#pip').onclick=()=>document.pictureInPictureEnabled?(document.pictureInPictureElement?document.exitPictureInPicture():v.requestPictureInPicture().catch(()=>{})):0;
+$('#fs').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else if(stage.requestFullscreen)stage.requestFullscreen();else if(v.webkitEnterFullscreen)v.webkitEnterFullscreen()};
+$('#cc').onclick=()=>{ccOn=!ccOn;$('#cc').setAttribute('aria-pressed',ccOn);lastKey=''};
+document.addEventListener('keydown',e=>{
+  if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)&&e.target.type!=='range'||!v.src)return;
+  const k=e.key;
+  if(k===' '){e.preventDefault();$('#play').click()}
+  else if(k==='ArrowLeft')v.currentTime-=5;else if(k==='ArrowRight')v.currentTime+=5;
+  else if(k==='f')$('#fs').click();else if(k==='m')$('#mute').click();else if(k==='c')$('#cc').click();
+});
+
+/* ---------- Ukuran ---------- */
+$('#sizes').onclick=e=>{const s=e.target.dataset.s;if(!s)return;stage.dataset.size=s;[...$('#sizes').children].forEach(b=>b.setAttribute('aria-pressed',b===e.target))};
+
+/* ---------- Seret & lepas ---------- */
+['dragover','dragleave','drop'].forEach(n=>document.addEventListener(n,e=>{
+  e.preventDefault();$('#empty').classList.toggle('drag',n==='dragover');
+  if(n==='drop')[...e.dataTransfer.files].forEach(f=>/\.(srt|vtt)$/i.test(f.name)?loadSub(f):(f.type.startsWith('video')||/\.(mp4|mkv|webm|mov|m4v|ogv)$/i.test(f.name))&&loadVideo(URL.createObjectURL(f)));
+}));
+
+/* ---------- Subtitle ---------- */
+const ts=s=>s.trim().replace(',','.').split(':').reduce((t,x)=>t*60+parseFloat(x),0);
+function parse(txt){
+  const out=[];
+  for(const b of txt.replace(/^\uFEFF/,'').replace(/\r/g,'').split(/\n{2,}/)){
+    const L=b.split('\n'),i=L.findIndex(l=>l.includes('-->'));if(i<0)continue;
+    const [a,c]=L[i].split('-->');
+    const t=L.slice(i+1).join('\n').replace(/<[^>]+>/g,'').replace(/\{\\[^}]*\}/g,'').trim();
+    if(t)out.push({s:ts(a),e:ts(c.trim().split(/\s/)[0]),t});
+  }
+  return out.sort((x,y)=>x.s-y.s);
+}
+async function loadSub(f){
+  cues=parse(await f.text());tr=[];ver++;lastKey='';
+  $('#subst').textContent=cues.length?f.name+' · '+cues.length+' baris':'Format subtitle tidak terbaca. Gunakan .srt atau .vtt.';
+}
+$('#openSub').onclick=()=>$('#sf').click();
+$('#sf').onchange=e=>e.target.files[0]&&loadSub(e.target.files[0]);
+$('#fsz').oninput=e=>sub.style.setProperty('--fs',e.target.value);
+$('#modes').onclick=e=>{const m=e.target.dataset.m;if(!m)return;mode=m;ver++;[...$('#modes').children].forEach(b=>b.setAttribute('aria-pressed',b===e.target))};
+function active(tt){
+  let lo=0,hi=cues.length;
+  while(lo<hi){const m=(lo+hi)>>1;cues[m].s<=tt?lo=m+1:hi=m}
+  const r=[];for(let i=lo-1;i>=0&&i>lo-5;i--)if(tt<cues[i].e)r.unshift(i);return r;
+}
+function render(){
+  const a=cues.length?active((v.currentTime-off)/sc):[],key=a.join()+'|'+mode+ver+ccOn;
+  if(key!==lastKey){
+    lastKey=key;sub.replaceChildren();sub.hidden=!ccOn||!a.length;
+    a.forEach(i=>{
+      const add=(x,c)=>{const d=document.createElement('div');d.textContent=x;if(c)d.className=c;sub.append(d)},t=tr[i];
+      if(mode==='tr'&&t)add(t);else if(mode==='both'&&t){add(t);add(cues[i].t,'o')}else add(cues[i].t);
+    });
+  }
+  requestAnimationFrame(render);
+}
+render();
+
+/* ---------- Tab ---------- */
+document.querySelector('.tabs').onclick=e=>{
+  const p=e.target.dataset.p;if(!p)return;
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b===e.target));
+  document.querySelectorAll('.pane').forEach(d=>d.hidden=d.id!==p);
+};
+
+/* ---------- Terjemahan AI ---------- */
+['akey','okey','model'].forEach(k=>{const el=$('#'+k);el.value=localStorage.getItem(k)||'';el.onchange=()=>localStorage.setItem(k,el.value.trim())});
+$('#prov').value=localStorage.getItem('prov')||'anthropic';
+$('#prov').onchange=e=>localStorage.setItem('prov',e.target.value);
+$('#lang').onchange=e=>$('#langx').hidden=e.target.value!=='*';
+$('#trgo').onclick=async()=>{
+  const st=$('#trst'),bar=$('#trbar');
+  if(!cues.length)return st.textContent='Pilih file subtitle dulu di tab Subtitle.';
+  const c0=cfg();if(!(c0.p==='openai'?c0.o:c0.a).trim())return st.textContent='Isi kunci API dulu di tab Kunci AI.';
+  const sample=ask;
+  let lang=$('#lang').value==='*'?$('#langx').value.trim():$('#lang').value;
+  if(!lang)return st.textContent='Tulis nama bahasa tujuan.';
+  const B=40,starts=[];for(let i=0;i<cues.length;i+=B)starts.push(i);
+  const tt=(v.currentTime-off)/sc,ci=cues.findIndex(c=>c.e>=tt),cur=ci<0?0:Math.floor(ci/B);
+  const order=starts.slice(cur).concat(starts.slice(0,cur));
+  tr=new Array(cues.length).fill(null);let done=0,fail=0,stop=false;
+  $('#trgo').disabled=true;bar.hidden=false;bar.value=0;st.textContent='Menerjemahkan…';
+  const work=async()=>{
+    while(order.length&&!stop){
+      const i=order.shift(),part=cues.slice(i,i+B).map(c=>c.t);
+      try{
+        const r=await sample('Terjemahkan setiap baris subtitle film berikut ke bahasa '+lang+'. Bahasa asal dideteksi otomatis. Pertahankan nada, nama diri, dan jeda baris; buat ringkas agar nyaman dibaca di layar. Balas HANYA array JSON berisi '+part.length+' string dengan urutan sama, tanpa teks lain.\n'+JSON.stringify(part),{cache:false});
+        const arr=JSON.parse(r.text.replace(/```json|```/g,'').trim());
+        part.forEach((_,k)=>{if(typeof arr[k]==='string')tr[i+k]=arr[k]});
+        if(mode==='orig'&&!done){mode='tr';[...$('#modes').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m==='tr'))}
+      }catch(e){fail++;if(e&&(e.code==='not_granted'||e.code==='rate_limited'))stop=true}
+      done++;bar.value=done/starts.length*100;ver++;
+    }
+  };
+  await Promise.all([work(),work()]);
+  $('#trgo').disabled=false;
+  st.textContent=stop?'Dihentikan. Izin AI ditolak atau batas pemakaian tercapai; bagian yang sudah selesai tetap dipakai.':fail?'Selesai, tetapi '+fail+' bagian gagal dan tetap tampil dalam bahasa asli.':'Selesai. Pilih “Keduanya” di tab Subtitle untuk membandingkan.';
+};
+
+/* ---------- Sinkronisasi ---------- */
+const setOff=x=>{off=Math.round(x*10)/10;$('#offv').textContent=(off>=0?'+':'−')+Math.abs(off).toFixed(1)+' dtk';lastKey=''};
+document.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>setOff(off+parseFloat(b.dataset.o)));
+$('#scale').onchange=e=>{sc=parseFloat(e.target.value);lastKey=''};
+$('#reset').onclick=()=>{setOff(0);sc=1;$('#scale').value='1'};
+v.addEventListener('pause',()=>{if(syncing)abort=true});
+let actx,an,srcN,dest;
+function ensureAudio(){if(an)return;actx=new AudioContext();srcN=actx.createMediaElementSource(v);an=actx.createAnalyser();an.fftSize=2048;srcN.connect(an);an.connect(actx.destination);dest=actx.createMediaStreamDestination();srcN.connect(dest)}
+$('#auto').onclick=async()=>{
+  const st=$('#syst'),bar=$('#sbar'),btn=$('#auto');
+  if(syncing){abort=true;return}
+  if(!cues.length||!v.src)return st.textContent='Muat video dan subtitle dulu.';
+  ensureAudio();
+  await actx.resume();
+  const W=45,R=120,t0=v.currentTime,N=W*10,e=new Float32Array(N).fill(-1),data=new Uint8Array(an.frequencyBinCount);
+  syncing=true;abort=false;btn.textContent='Batal';bar.hidden=false;st.textContent='Mendengarkan…';
+  v.playbackRate=1;await v.play().catch(()=>{});
+  await new Promise(res=>{const id=setInterval(()=>{
+    const k=Math.floor((v.currentTime-t0)*10);
+    if(k>=0&&k<N){an.getByteFrequencyData(data);let s=0;for(let i=13;i<146;i++)s+=data[i];e[k]=Math.max(e[k],s/133)}
+    bar.value=Math.min(100,(v.currentTime-t0)/W*100);
+    if(v.currentTime-t0>=W||v.ended||abort){clearInterval(id);res()}
+  },50)});
+  syncing=false;btn.textContent='Sinkron cepat (deteksi suara)';bar.hidden=true;v.pause();v.currentTime=t0;
+  const ok=[...e].filter(x=>x>=0);
+  if(abort||ok.length<N*0.6)return st.textContent='Analisis dibatalkan atau terlalu sedikit data.';
+  if(Math.max(...ok)<2)return st.textContent='Audio tidak terbaca. Video dari tautan luar sering diblokir; pakai file dari perangkat.';
+  const so=[...ok].sort((a,b)=>a-b),thr=(so[Math.floor(so.length*.2)]+so[Math.floor(so.length*.9)])/2;
+  const vo=Array.from(e,x=>x<0?-1:x>thr?1:0),vm=vo.filter(x=>x>=0).reduce((a,b)=>a+b,0)/ok.length;
+  const M=(W+2*R)*10,sa=new Uint8Array(M),T=t0-R;
+  for(const c of cues){const a=Math.max(0,Math.ceil((c.s*sc-T)*10)),b=Math.min(M-1,Math.floor((c.e*sc-T)*10));for(let j=a;j<=b;j++)sa[j]=1}
+  const base=R*10;let best=-2,bd=0;
+  for(let d=-900;d<=900;d++){
+    let sm=0,n=0;for(let k=0;k<N;k++)if(vo[k]>=0){sm+=sa[base+k-d];n++}
+    sm/=n;let num=0,dv=0,ds=0;
+    for(let k=0;k<N;k++)if(vo[k]>=0){const x=vo[k]-vm,y=sa[base+k-d]-sm;num+=x*y;dv+=x*x;ds+=y*y}
+    const r=dv&&ds?num/Math.sqrt(dv*ds):0;if(r>best){best=r;bd=d}
+  }
+  if(best<0.12)return st.textContent='Kurang yakin (kecocokan '+best.toFixed(2)+'). Coba mulai dari adegan yang banyak dialog.';
+  setOff(bd/10);
+  st.textContent='Subtitle digeser '+(bd>=0?'+':'−')+Math.abs(bd/10).toFixed(1)+' dtk (kecocokan '+best.toFixed(2)+'). Putar untuk memeriksa, lalu halus-kan dengan tombol ±0,1.';
+};
+
+/* ---------- AI: penyedia, pengenalan ucapan, sinkron cerdas ---------- */
+function cfg(){const g=k=>localStorage.getItem(k)||'';return{p:g('prov')||'anthropic',m:g('model').trim(),a:g('akey'),o:g('okey')}}
+async function ask(p){
+  const c=cfg(),oa=c.p==='openai',key=(oa?c.o:c.a).trim();
+  if(!key){const e=new Error('Kunci API kosong');e.code='not_granted';throw e}
+  const model=c.m||(oa?'gpt-4o-mini':'claude-sonnet-5-5');
+  const r=oa?await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+key},body:JSON.stringify({model,messages:[{role:'user',content:p}]})})
+    :await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:4000,messages:[{role:'user',content:p}]})});
+  if(!r.ok){const e=new Error('HTTP '+r.status);e.code=r.status===429?'rate_limited':(r.status===401||r.status===403)?'not_granted':'error';throw e}
+  const j=await r.json();
+  return{text:oa?j.choices[0].message.content:j.content.filter(x=>x.type==='text').map(x=>x.text).join('')};
+}
+function rec(sec){return new Promise(res=>{
+  const mr=new MediaRecorder(dest.stream),ch=[];
+  mr.ondataavailable=e=>e.data.size&&ch.push(e.data);
+  mr.onstop=()=>res(new Blob(ch,{type:mr.mimeType||'audio/webm'}));
+  mr.start();setTimeout(()=>mr.state!=='inactive'&&mr.stop(),sec*1000);
+})}
+async function stt(blob){
+  const f=new FormData();f.append('file',blob,'klip.webm');f.append('model','whisper-1');f.append('response_format','verbose_json');
+  const r=await fetch('https://api.openai.com/v1/audio/transcriptions',{method:'POST',headers:{authorization:'Bearer '+cfg().o.trim()},body:f});
+  if(!r.ok)throw new Error('Pengenalan ucapan gagal (HTTP '+r.status+')');
+  return(await r.json()).segments||[];
+}
+$('#ai').onclick=async()=>{
+  const st=$('#syst'),bar=$('#sbar'),btn=$('#ai'),c=cfg();
+  if(syncing){abort=true;return}
+  if(!cues.length||!v.src||!v.duration)return st.textContent='Muat video dan subtitle dulu.';
+  if(!c.o.trim())return st.textContent='Fitur ini butuh kunci OpenAI untuk mengenali ucapan. Isi di tab Kunci AI.';
+  if(!(c.p==='openai'?c.o:c.a).trim())return st.textContent='Isi kunci untuk penyedia terpilih di tab Kunci AI.';
+  ensureAudio();await actx.resume();
+  const W=25,d=v.duration,t00=v.currentTime,base=sc,pts=d>=900?[.08,.5,.9]:d>=300?[.15,.85]:[Math.min(t00,d-W-1)/d],res=[];
+  syncing=true;abort=false;btn.textContent='Batal';bar.hidden=false;bar.removeAttribute('value');
+  let err='';
+  try{
+    for(let n=0;n<pts.length&&!abort;n++){
+      const lab='Titik '+(n+1)+' dari '+pts.length+': ';
+      st.textContent=lab+'merekam '+W+' detik…';
+      v.currentTime=Math.max(0,Math.min(pts[n]*d,d-W-1));v.playbackRate=1;await v.play().catch(()=>{});
+      await new Promise(r=>setTimeout(r,400));
+      const t0=v.currentTime,blob=await rec(W);if(abort)break;
+      st.textContent=lab+'AI mencocokkan ucapan dengan subtitle…';
+      const segs=(await stt(blob)).map(s=>({s:s.start,t:s.text.trim()})).filter(s=>s.t.length>3),cand=[];
+      cues.forEach((q,i)=>{const x=q.s*base;if(x>=t0-150&&x<=t0+W+150&&cand.length<120)cand.push({i,t:q.t.replace(/\n/g,' ')})});
+      if(segs.length<3||cand.length<3)continue;
+      const r=await ask('Berikut ucapan hasil transkripsi audio film dan daftar baris subtitle. Bahasanya bisa berbeda. Cocokkan tiap ucapan dengan baris subtitle yang artinya sama. Balas HANYA array JSON berisi pasangan [idUcapan, idSubtitle] yang kamu yakini, tanpa teks lain.\nUCAPAN: '+JSON.stringify(segs.map((s,i)=>({i,t:s.t})))+'\nSUBTITLE: '+JSON.stringify(cand));
+      const pairs=JSON.parse(r.text.replace(/```json|```/g,'').trim());
+      const os=pairs.map(([a,b])=>segs[a]&&cues[b]?t0+segs[a].s-cues[b].s*base:null).filter(x=>x!==null).sort((a,b)=>a-b);
+      if(os.length<3)continue;
+      const med=os[os.length>>1],good=os.filter(x=>Math.abs(x-med)<2);
+      if(good.length>=3)res.push({t:t0+W/2,o:good.reduce((a,b)=>a+b,0)/good.length});
+    }
+  }catch(e){err=e.message||String(e.code)}
+  syncing=false;btn.textContent='Sinkron cerdas (AI)';bar.hidden=true;v.pause();v.currentTime=t00;
+  if(abort)return st.textContent='Dibatalkan.';
+  if(err)return st.textContent='Gagal: '+err;
+  if(!res.length)return st.textContent='AI tidak menemukan pasangan yang cukup yakin. Coba pada film yang dialognya jelas, atau pakai subtitle yang sesuai filmnya.';
+  const n=res.length,mt=res.reduce((a,x)=>a+x.t,0)/n,mo=res.reduce((a,x)=>a+x.o,0)/n;
+  let b=0,den=res.reduce((a,x)=>a+(x.t-mt)**2,0);
+  if(n>1&&den)b=res.reduce((a,x)=>a+(x.t-mt)*(x.o-mo),0)/den;
+  if(Math.abs(b)>0.1)b=0;
+  const a0=mo-b*mt,sc2=base/(1-b),off2=a0/(1-b);
+  sc=sc2;$('#scale').add(new Option('AI: ×'+sc2.toFixed(5),sc2,true,true));setOff(off2);
+  st.textContent='Selesai ('+n+' titik cocok). Geseran '+(off>=0?'+':'−')+Math.abs(off).toFixed(1)+' dtk, kecepatan subtitle ×'+sc2.toFixed(5)+'. Putar untuk memeriksa.';
+};
+</script>
+</body>
+</html>
